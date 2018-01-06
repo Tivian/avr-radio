@@ -3,6 +3,7 @@
 
 #include "audio.h"
 #include "menu.h"
+#include "radio.h"
 #include <stdint.h>
 
 typedef struct {
@@ -13,6 +14,7 @@ typedef struct {
 typedef struct {
     mode_t mode;
     sound_t audio;
+    radio_t radio;
     settings_t setup;
 } save_t;
 

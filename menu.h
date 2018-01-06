@@ -5,11 +5,13 @@
 #include "audio.h"
 #include <avr/pgmspace.h>
 
+#define OFF 0
+#define ON  1
+
 #define TITLE_LINE 0
 #define WORKING_LINE 1
 
-#define EQ_RADIO_OPTIONS (sizeof(eq_controls) / sizeof(eq_controls[0]))
-#define EQ_EXTERNAL_OPTIONS (EQ_RADIO_OPTIONS)
+#define EQ_OPTIONS (sizeof(eq_controls) / sizeof(eq_controls[0]))
 #define SETTINGS_OPTIONS (sizeof(settings) / sizeof(settings[0]))
 
 typedef uint8_t REMOTE_CMD;
@@ -28,8 +30,15 @@ typedef enum {
     EXTERNAL,
     RADIO,
     EQUALIZER,
-    SETTINGS
+    SETTINGS,
+    SELECTOR
 } mode_t;
+
+typedef enum {
+    S_EXTERNAL,
+    S_RADIO,
+    S_BOTH
+} setting_mode_t;
 
 typedef enum {
     SLIDER,
@@ -56,8 +65,9 @@ typedef struct {
 
 typedef struct {
     PGM_P name;
-    uint16_t init_val;
+    uint16_t initial;
     uint16_t *val;
+    setting_mode_t mode;
     setting_type_t type;
     union {
         slider_t slider;

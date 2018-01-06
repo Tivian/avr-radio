@@ -53,7 +53,6 @@ const uint8_t right_arrow[] PROGMEM = { 0x08, 0x0C, 0x0E, 0x0F, 0x0F, 0x0E, 0x0C
 static uint8_t buf_index = 0;
 static char buffer[16];
 
-static brush_t brush = B_NOTHING;
 static uint8_t eq_pos = 0;
 static uint8_t sett_pos = 0;
 static HANDLE handle;
@@ -79,6 +78,7 @@ const eq_t eq_controls[] PROGMEM = {
 static PGM_P get_mode_str(void);
 static HANDLE get_handle(void);
 static HANDLE get_default_handle(void);
+static void repaint(brush_t brush);
 static bool common_mode(REMOTE_CMD cmd, bool repeat);
 static void external_mode(REMOTE_CMD cmd, bool repeat);
 static void radio_mode(REMOTE_CMD cmd, bool repeat);
@@ -170,7 +170,7 @@ static HANDLE get_default_handle(void) {
     return save.audio.source == SOURCE_A ? external_mode : radio_mode;
 }
 
-static void repaint(void) {
+static void repaint(brush_t brush) {
     switch (brush) {
         case B_VOLUME:
             if (save.audio.mute) {
@@ -222,8 +222,6 @@ static void repaint(void) {
             lcd_put_def_p(right_arrow, LCD_DISP_LENGTH - 1, 1);
             break;
     }
-
-    brush = B_NOTHING;
 }
 
 static bool common_mode(REMOTE_CMD cmd, bool repeat) {
@@ -268,8 +266,7 @@ static bool common_mode(REMOTE_CMD cmd, bool repeat) {
 
     if ((cmd == REMOTE_PLAY && !repeat) || cmd == REMOTE_PLUS || cmd == REMOTE_MINUS) {
         audio_update();
-        brush = B_VOLUME;
-        repaint();
+        repaint(B_VOLUME);
     }
 
     return true;
@@ -321,9 +318,7 @@ static void equalizer_mode(REMOTE_CMD cmd, bool repeat) {
     if (cmd == REMOTE_BACKWARD || cmd == REMOTE_FORWARD)
         audio_update();
 
-    brush = B_EQUALIZER;
-    repaint();
-
+    repaint(B_EQUALIZER);
     set_timeout(save.setup.timeout, ({ void fx(void) {
         change_mode(caller, true);
     } fx; }));
@@ -364,6 +359,8 @@ static void settings_mode(REMOTE_CMD cmd, bool repeat) {
             //}
             break;
     }
+
+    repaint(B_SETTINGS);
 }
 
 static void change_mode(mode_t mode, bool clear) {

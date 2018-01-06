@@ -5,17 +5,6 @@
 #include <util/twi.h>
 #include "bool.h"
 
-//#ifndef F_CPU
-//#define F_CPU 8000000UL
-//#endif
-
-//#define F_SCL 100000UL // SCL frequency
-//#define Prescaler 1
-//#define TWBR_val ((((F_CPU / F_SCL) / Prescaler) - 16 ) / 2)
-//#define TWSR_val (Prescaler - 1)
-
-//#define I2C_READ 0x01
-//#define I2C_WRITE 0x00
 #define I2C_STATUS_MASK 0xF8
 
 #define i2c_start_condi() (TWCR = _BV(TWINT) | _BV(TWSTA) | _BV(TWEN))
@@ -25,7 +14,6 @@
 #define i2c_nack_condi() (TWCR = _BV(TWINT) | _BV(TWEN))
 
 #define i2c_status() ((TWSR & I2C_STATUS_MASK))
-//#define i2c_wait() while (!(TWCR & _BV(TWINT))) {};
 #define i2c_stop() (i2c_stop_condi())
 #define i2c_set_data(data) (TWDR = (data))
 #define i2c_get_data() (TWDR)

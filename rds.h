@@ -25,12 +25,6 @@
 #define RDS_PROG_TYPE_SHIFT  5
 #define RDS_BLOCK_B_SHIFT    0
 
-/*
-10 radio text
-11
-1000
-*/
-
 typedef struct {
     uint8_t country_code;
     uint8_t program_area;

@@ -13,6 +13,9 @@ save_t save = {
         .channel_select = BOTH,
         .stereo_mode = LINEAR
     },
+    .radio = {
+        .boost = false
+    },
     .setup = {        
         .scroll_speed = 350,
         .timeout = 5

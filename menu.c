@@ -311,10 +311,8 @@ static bool common_mode(REMOTE_CMD cmd, bool repeat) {
             return false;
     }
 
-    if ((cmd == REMOTE_PLAY && !repeat) || cmd == REMOTE_PLUS || cmd == REMOTE_MINUS) {
-        audio_update();
+    if ((cmd == REMOTE_PLAY && !repeat) || cmd == REMOTE_PLUS || cmd == REMOTE_MINUS)
         repaint(B_VOLUME);
-    }
 
     return true;
 }

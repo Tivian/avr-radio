@@ -28,6 +28,7 @@ int main(void) {
         if (nec_is_ready()) {
             ui_led_toggle();
             menu_update(nec_get_command(), nec_is_repeat());
+            audio_update();
             ui_led_toggle();
             nec_reset();
         }

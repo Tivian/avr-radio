@@ -105,6 +105,6 @@ static uint8_t get_treble(void) {
 }
 
 static uint8_t get_switches(void) {
-    return (save.audio.source == RADIO)  | ((save.audio.channel_select + 1) << 1) |
-           (save.audio.stereo_mode << 3) | (save.audio.mute << 5) | 0xC0;
+    return (save.audio.source == SOURCE_B) | ((save.audio.channel_select + 1) << 1) |
+           (save.audio.stereo_mode << 3)   | (save.audio.mute << 5) | 0xC0;
 }

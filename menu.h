@@ -18,7 +18,8 @@ typedef void(*HANDLE)(REMOTE_CMD, bool);
 typedef enum {
     B_NOTHING,
     B_VOLUME,
-    B_EQUALIZER
+    B_EQUALIZER,
+    B_SETTINGS
 } brush_t;
 
 typedef enum {

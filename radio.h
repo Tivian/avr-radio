@@ -93,7 +93,17 @@ typedef struct {
     bool mono;
 } RADIO_INFO;
 
+typedef enum {
+    R_VOLUME,
+    BOOST
+} radio_ctrl_t;
+
+typedef struct {
+    bool boost;
+} radio_t;
+
 uint16_t radio_init(bool defaults, RADIO_FREQ default_freq);
+void radio_show_info(void);
 void radio_term();
 void radio_set_volume(uint8_t new_volume);
 void radio_set_bass_boost(bool switch_on);

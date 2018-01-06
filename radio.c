@@ -52,6 +52,10 @@ uint16_t radio_init(bool defaults, RADIO_FREQ default_freq) {
     return 0;
 }
 
+void radio_show_info(void) {
+    return;
+}
+
 // switch the power off
 void radio_term() {
     radio_set_volume(0);

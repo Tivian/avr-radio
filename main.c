@@ -7,7 +7,7 @@
 #include <avr/interrupt.h>
 
 int main(void) {
-    ui_init();
+    ui_init(true);
     nec_init();
     lcd_init();
     menu_init();

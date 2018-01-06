@@ -1,4 +1,5 @@
 #include "lcd.h"
+#include <string.h>
 
 static void lcd_write(uint8_t data, uint8_t rs) {
     if (rs) {
@@ -115,6 +116,23 @@ void lcd_puts_p(PGM_P progmem_s) {
     while (c = pgm_read_byte(progmem_s++)) {
         lcd_putc(c);
     }
+}
+
+void lcd_puts_center(const char *s, uint8_t line) {
+    lcd_goto(0, line);
+    lcd_put_space((LCD_DISP_LENGTH - strlen(s)) / 2);
+    lcd_puts(s);
+}
+
+void lcd_puts_center_p(PGM_P progmem_s, uint8_t line) {
+    lcd_goto(0, line);
+    lcd_put_space((LCD_DISP_LENGTH - strlen_P(progmem_s)) / 2);
+    lcd_puts_p(progmem_s);
+}
+
+void lcd_put_space(uint8_t len) {
+    for (uint8_t i = 0; i < len; i++)
+        lcd_putc(' ');
 }
 
 static void _lcd_put_def(uint8_t char_id, uint8_t x, uint8_t y) {

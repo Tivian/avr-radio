@@ -61,7 +61,7 @@ uint8_t i2c_read_nack(void) {
 
 void i2c_wait(void) {
     uint16_t timeout = 0;
-    while (!(TWCR & _BV(TWINT)) && (timeout < (F_CPU / 5000))) {
+    while (!(TWCR & _BV(TWINT)) && (timeout < (F_CPU / 500))) {
         timeout++;
     }
 }

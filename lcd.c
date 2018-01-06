@@ -50,7 +50,7 @@ static uint8_t lcd_read(uint8_t rs) {
 
 static uint8_t lcd_wait(void) {
     uint16_t timeout = 0;
-    while((lcd_read(0) & _BV(LCD_BUSY)) && (timeout < (F_CPU / 5000))) {
+    while((lcd_read(0) & _BV(LCD_BUSY)) && (timeout < (F_CPU / 500))) {
         timeout++;
     }
 

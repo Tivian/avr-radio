@@ -1,8 +1,9 @@
 #include "ui.h"
 
-void ui_init(void) {
+void ui_init(bool switch_on) {
     DDR(OP_LED_PORT) |= _BV(OP_LED_PIN);
-    ui_led_toggle();
+    if (switch_on)
+        ui_led_toggle();
 }
 
 void ui_led_toggle(void) {

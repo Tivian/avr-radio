@@ -19,7 +19,9 @@ typedef enum {
     B_NOTHING,
     B_VOLUME,
     B_EQUALIZER,
-    B_SETTINGS
+    B_SETTINGS,
+    B_SELECTOR,
+    B_RADIO
 } brush_t;
 
 typedef enum {

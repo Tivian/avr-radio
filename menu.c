@@ -55,6 +55,7 @@ static int16_t temp;
 static uint8_t buf_index = 0;
 static char buffer[16];
 
+static bool busy = false;
 static uint8_t eq_pos = 0;
 static uint8_t sett_pos = 0;
 static HANDLE handle;
@@ -105,6 +106,10 @@ void menu_home(void) {
 void menu_update(REMOTE_CMD cmd, bool repeat) {
     if (!common_mode(cmd, repeat))
         handle(cmd, repeat);
+}
+
+bool menu_is_busy(void) {
+    return busy;
 }
 
 void show_title(const char *s) {
@@ -311,8 +316,12 @@ static bool common_mode(REMOTE_CMD cmd, bool repeat) {
             return false;
     }
 
-    if ((cmd == REMOTE_PLAY && !repeat) || cmd == REMOTE_PLUS || cmd == REMOTE_MINUS)
+    if ((cmd == REMOTE_PLAY && !repeat) || cmd == REMOTE_PLUS || cmd == REMOTE_MINUS) {
+        busy = true;
         repaint(B_VOLUME);
+    } else {
+        busy = false;
+    }
 
     return true;
 }

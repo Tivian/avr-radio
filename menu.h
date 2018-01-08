@@ -78,6 +78,7 @@ typedef struct {
 void menu_init(void);
 void menu_home(void);
 void menu_update(REMOTE_CMD cmd, bool repeat);
+bool menu_is_busy(void);
 void show_title(const char *s);
 void show_title_p(PGM_P progmem_s);
 void show_text(const char *s);

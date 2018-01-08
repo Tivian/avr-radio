@@ -3,8 +3,11 @@
 #include "menu.h"
 #include "nec.h"
 #include "radio.h"
+#include "save.h"
 #include "ui.h"
 #include <avr/interrupt.h>
+
+extern save_t save;
 
 int main(void) {
     ui_init(true);
@@ -32,6 +35,9 @@ int main(void) {
             ui_led_toggle();
             nec_reset();
         }
+
+        if (!menu_is_busy() && save.mode == RADIO)
+            radio_show_info();
     }
 
     return 0;

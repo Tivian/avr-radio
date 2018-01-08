@@ -55,6 +55,8 @@ Connector:
 
 #define RADIO_REG_RA        0x0A
 #define RADIO_REG_RA_RDS      0x8000
+#define RADIO_REG_RA_SEEK     0x4000
+#define RADIO_REG_RA_FAIL     0x2000
 #define RADIO_REG_RA_RDSBLOCK 0x0800
 #define RADIO_REG_RA_STEREO   0x0400
 #define RADIO_REG_RA_NR       0x03FF
@@ -87,22 +89,18 @@ typedef enum {
 typedef struct {
     RADIO_FREQ freq;
     uint8_t rssi;
+    bool seek;
+    bool fail;
+    bool tuned;
     bool stereo;
     bool rds;
-    bool tuned;
-    bool mono;
 } RADIO_INFO;
-
-typedef enum {
-    R_VOLUME,
-    BOOST
-} radio_ctrl_t;
 
 typedef struct {
     bool boost;
 } radio_t;
 
-uint16_t radio_init(bool defaults, RADIO_FREQ default_freq);
+uint8_t radio_init(bool defaults, RADIO_FREQ default_freq);
 void radio_show_info(void);
 void radio_term();
 void radio_set_volume(uint8_t new_volume);
@@ -116,7 +114,7 @@ void radio_set_frequency(RADIO_FREQ new_freq);
 void radio_set_band_frequency(RADIO_BAND new_band, RADIO_FREQ new_freq);
 void radio_seek_up(bool to_next_sender);
 void radio_seek_down(bool to_next_sender);
-void radio_get_info(RADIO_INFO *info);
+bool radio_get_info(RADIO_INFO *info);
 bool radio_get_rds(RADIO_RDS *rds);
 
 #endif

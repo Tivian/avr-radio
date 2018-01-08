@@ -1,5 +1,16 @@
 #include "radio.h"
 #include "i2c_master.h"
+#include "lcd.h"
+
+// for debug reasons
+#include <stdlib.h>
+
+const char fm_str[] PROGMEM        = "FM";
+const char mega_herz_str[] PROGMEM = " MHz";
+const char search_str[] PROGMEM    = "SEARCH";
+
+static bool prog_name_ready = false;
+static char prog_name[8];
 
 static RADIO_BAND _band;
 static RADIO_FREQ _freq;
@@ -10,18 +21,16 @@ static RADIO_FREQ _freqSteps;
 
 static uint16_t registers[16];
 
-static void _read_registers();
+static bool _read_registers();
 static void _save_registers();
 static void _save_register(uint8_t reg_nr);
 static void _write16(uint16_t val);
 static uint16_t _read16(bool last);
 
-uint16_t radio_init(bool defaults, RADIO_FREQ default_freq) {
-    uint16_t ret;
+uint8_t radio_init(bool defaults, RADIO_FREQ default_freq) {
     i2c_init(RADIO_TWI_TWBR, RADIO_TWI_TWPS);
-
-    if (ret = i2c_start(RADIO_SLA_SQE, I2C_WRITE))
-        return (RADIO_SLA_SQE << 8) | ret;
+    if (i2c_start(RADIO_SLA_SQE, I2C_WRITE))
+        return i2c_status();
     else
         i2c_stop();
 
@@ -52,8 +61,89 @@ uint16_t radio_init(bool defaults, RADIO_FREQ default_freq) {
     return 0;
 }
 
+/*
+ 0123456789012345
+|================|
+| FM P01 01234567|
+|---102.4 MHz----|
+| 00  FFFF  FFFF |
+|================|
+ 0123456789012345
+*/
+
 void radio_show_info(void) {
-    return;
+    char buffer[6];
+    RADIO_INFO info;
+    if (!radio_get_info(&info))
+        return;
+
+    lcd_clr();
+    //lcd_putc(' ');
+    //lcd_puts_p(fm_str);
+    //lcd_puts(" P-- ");
+    //lcd_putc(' ');
+    lcd_putc('0' + ((info.rssi % 100) / 10));
+    lcd_putc('0' + (info.rssi % 10));
+    lcd_putc(' ');
+    lcd_putc('0' + info.seek);
+    lcd_putc('0' + info.fail);
+    lcd_putc('0' + info.tuned);
+    lcd_putc('0' + info.stereo);
+    lcd_putc('0' + info.rds);
+    //lcd_putc(' ');
+    //if (info.seek)
+        //lcd_puts_p(search_str);
+
+    lcd_goto(0, 1);
+    lcd_put_space(3);
+
+    uint8_t integer_part = info.freq / 100;
+    uint8_t fractional_part = info.freq % 100;
+
+    uint8_t temp = integer_part / 100;
+    buffer[0] = temp == 0 ? ' ' : '0' + temp;
+    buffer[1] = '0' + ((integer_part / 10) % 10);
+    buffer[2] = '0' + (integer_part % 10);
+    buffer[3] = '.';
+    buffer[4] = '0' + (fractional_part / 10);
+    buffer[5] = '\0';
+
+    lcd_puts(buffer);
+    lcd_puts_p(mega_herz_str);
+
+    if (info.rds) {
+        /*RADIO_RDS rds;
+        if (radio_get_rds(&rds)) {
+            char buffer[4];
+
+            utoa(rds.raw.block_a, buffer, 16);
+            lcd_goto(5, 0);
+            lcd_puts(buffer);
+
+            utoa(rds.raw.block_b, buffer, 16);
+            lcd_goto(11, 0);
+            lcd_puts(buffer);
+        }*/
+        utoa(registers[RADIO_REG_RDSA], buffer, 16);
+        lcd_goto(5, 0);
+        lcd_puts(buffer);
+
+        utoa(registers[RADIO_REG_RDSB], buffer, 16);
+        lcd_goto(11, 0);
+        lcd_puts(buffer);
+    }
+    /*if (info.rds) {
+        RADIO_RDS rds;
+        if (radio_get_rds(&rds)) {
+            lcd_goto(8, 0);
+            lcd_putc('R');
+        }
+
+        //if (prog_name_ready) {
+            //lcd_goto(8, 0);
+            //lcd_puts(prog_name);
+        //}
+    }*/
 }
 
 // switch the power off
@@ -129,8 +219,13 @@ void radio_set_band(RADIO_BAND newBand) {
 RADIO_FREQ radio_get_frequency() {
     // check register A
     i2c_start(RADIO_SLA_SQE, I2C_READ);
-    registers[RADIO_REG_RA] = _read16(true);
+    uint16_t new_data = _read16(true);
     i2c_stop();
+
+    if (new_data != registers[RADIO_REG_RA])
+        registers[RADIO_REG_RA] = new_data;
+    else
+        return 0;
 
     uint16_t ch = registers[RADIO_REG_RA] & RADIO_REG_RA_NR;
     _freq = _freqLow + (ch * RADIO_FREQ_STEPS);  // assume 100 kHz spacing
@@ -190,69 +285,67 @@ void radio_seek_down(bool to_next_sender) {
 }
 
 // Retrieve all the information related to the current radio receiving situation.
-void radio_get_info(RADIO_INFO *info) {
+bool radio_get_info(RADIO_INFO *info) {
     // read data from registers A .. F of the chip into class memory
-    _read_registers();
+    if (!_read_registers())
+        return false;
+
     uint16_t channel = registers[RADIO_REG_RA] & RADIO_REG_RA_NR;
     _freq = _freqLow + (channel * RADIO_FREQ_STEPS);  // assume 100 kHz spacing
 
-    info->freq = _freq;
-    info->rssi = registers[RADIO_REG_RB] >> 10;
-    if (registers[RADIO_REG_RA]   & RADIO_REG_RA_STEREO) info->stereo = true;
-    if (registers[RADIO_REG_RA]   & RADIO_REG_RA_RDS)    info->rds    = true;
-    if (registers[RADIO_REG_RB]   & RADIO_REG_RB_FMTRUE) info->tuned  = true;
-    if (registers[RADIO_REG_CTRL] & RADIO_REG_CTRL_MONO) info->mono   = true;
+    info->freq   = _freq;
+    info->rssi   =    registers[RADIO_REG_RB] >> 10;
+    info->seek   =  !(registers[RADIO_REG_RA] & RADIO_REG_RA_SEEK);
+    info->fail   =  !(registers[RADIO_REG_RA] & RADIO_REG_RA_SEEK);
+    info->tuned  = !!(registers[RADIO_REG_RB] & RADIO_REG_RB_FMTRUE);
+    info->stereo = !!(registers[RADIO_REG_RA] & RADIO_REG_RA_STEREO);
+    info->rds    = !!(registers[RADIO_REG_RA] & RADIO_REG_RA_RDS);    
+    return true;
 }
 
 bool radio_get_rds(RADIO_RDS *rds) {
-    uint16_t newData;
-    bool result = false;
+    bool result = _read_registers();
 
-    // check register A
-    i2c_start(RADIO_SLA_SQE, I2C_READ);
-    registers[RADIO_REG_RA] = _read16(true);
-    i2c_stop();
+    // raw data (for debug)
+    rds->raw.block_a = registers[RADIO_REG_RDSA];
+    rds->raw.block_b = registers[RADIO_REG_RDSB];
+    rds->raw.block_c = registers[RADIO_REG_RDSC];
+    rds->raw.block_d = registers[RADIO_REG_RDSD];
 
-    //rds->block_e_present = registers[RADIO_REG_RA] & RADIO_REG_RA_RDSBLOCK;
-    if (registers[RADIO_REG_RA] & RADIO_REG_RA_RDS) {
-        // check for new RDS data available
-        i2c_start(RADIO_SLA_RAN, I2C_WRITE); // Device 0x11 for random access
-        i2c_write(RADIO_REG_RDSA);           // Start at Register 0x0C
+    // Block A
+    rds->pic.country_code = (registers[RADIO_REG_RDSA] & RDS_COUNTRY_CODE_MASK) >> RDS_COUNTRY_CODE_SHIFT;
+    rds->pic.program_area = (registers[RADIO_REG_RDSA] & RDS_PROGRAM_AREA_MASK) >> RDS_PROGRAM_AREA_SHIFT;
+    rds->pic.program_ref  = (registers[RADIO_REG_RDSA] & RDS_PROGRAM_REF_MASK)  >> RDS_PROGRAM_REF_SHIFT;
 
-        i2c_start(RADIO_SLA_RAN, I2C_READ);  // Retransmit device address with READ, followed by 8 bytes
-        newData = _read16(false);
-        if (newData != registers[RADIO_REG_RDSA]) {
-            registers[RADIO_REG_RDSA] = rds->block_a = newData;
-            rds->pic.country_code = (registers[RADIO_REG_RDSA] & RDS_COUNTRY_CODE_MASK) >> RDS_COUNTRY_CODE_SHIFT;
-            rds->pic.program_area = (registers[RADIO_REG_RDSA] & RDS_PROGRAM_AREA_MASK) >> RDS_PROGRAM_AREA_SHIFT;
-            rds->pic.program_ref  = (registers[RADIO_REG_RDSA] & RDS_PROGRAM_REF_MASK)  >> RDS_PROGRAM_REF_SHIFT;
-            result = true;
-        }
+    // Block B
+    rds->group_type      = (registers[RADIO_REG_RDSB] & RDS_GROUP_TYPE_MASK) >> RDS_GROUP_TYPE_SHIFT;
+    rds->group_version   = (registers[RADIO_REG_RDSB] & RDS_GROUP_VER_MASK)  >> RDS_GROUP_VER_SHIFT;
+    rds->traffic_program = (registers[RADIO_REG_RDSB] & RDS_TRAF_PROG_MASK)  >> RDS_TRAF_PROG_SHIFT;
+    rds->program_type    = (registers[RADIO_REG_RDSB] & RDS_PROG_TYPE_MASK)  >> RDS_PROG_TYPE_SHIFT;
 
-        newData = _read16(false);
-        if (newData != registers[RADIO_REG_RDSB]) {
-            registers[RADIO_REG_RDSB] = rds->block_b = newData;
-            rds->group_type      = (registers[RADIO_REG_RDSB] & RDS_GROUP_TYPE_MASK) >> RDS_GROUP_TYPE_SHIFT;
-            rds->group_version   = (registers[RADIO_REG_RDSB] & RDS_GROUP_VER_MASK)  >> RDS_GROUP_VER_SHIFT;
-            rds->traffic_program = (registers[RADIO_REG_RDSB] & RDS_TRAF_PROG_MASK)  >> RDS_TRAF_PROG_SHIFT;
-            rds->program_type    = (registers[RADIO_REG_RDSB] & RDS_PROG_TYPE_MASK)  >> RDS_PROG_TYPE_SHIFT;
-            rds->block_b_add     = (registers[RADIO_REG_RDSB] & RDS_BLOCK_B_UNKNOWN) >> RDS_BLOCK_B_SHIFT;
-            result = true;
-        }
+    switch (rds->group_type) {
+        case 0x00:
+            rds->group.basic_info.traffic_ann         = (registers[RADIO_REG_RDSB] & RDS_GROUP_0_TA_MASK)  >> RDS_GROUP_0_TA_SHIFT;
+            rds->group.basic_info.music_speech_switch = (registers[RADIO_REG_RDSB] & RDS_GROUP_0_MS_MASK)  >> RDS_GROUP_0_MS_SHIFT;
+            rds->group.basic_info.index               = (registers[RADIO_REG_RDSB] & RDS_GROUP_0_IDX_MASK) >> RDS_GROUP_0_IDX_SHIFT;
+            uint8_t DI_bit                            = (registers[RADIO_REG_RDSB] & RDS_GROUP_0_DI_MASK)  >> RDS_GROUP_0_DI_SHIFT;
 
-        newData = _read16(false);
-        if (newData != registers[RADIO_REG_RDSC]) {
-            registers[RADIO_REG_RDSC] = rds->block_c = newData;
-            result = true;
-        }
+            if (rds->group.basic_info.index == 0)
+                rds->group.basic_info.DI = 0x00;
+            rds->group.basic_info.DI |= DI_bit << (3 - rds->group.basic_info.index);
 
-        newData = _read16(true);
-        if (newData != registers[RADIO_REG_RDSD]) {
-            registers[RADIO_REG_RDSD] = rds->block_d = newData;
-            result = true;
-        }
+            if (rds->group_version == RDS_GROUP_TYPE_A) {
+                rds->group.basic_info.alt_freq_1 = (registers[RADIO_REG_RDSC] & RDS_GROUP_0_ALT_FREQ_1_MASK) >> RDS_GROUP_0_ALT_FREQ_1_SHIFT;
+                rds->group.basic_info.alt_freq_2 = (registers[RADIO_REG_RDSC] & RDS_GROUP_0_ALT_FREQ_2_MASK) >> RDS_GROUP_0_ALT_FREQ_2_SHIFT;
+            }
 
-        i2c_stop();
+            rds->group.basic_info.ch[0] = prog_name[2 * rds->group.basic_info.index] =
+                (registers[RADIO_REG_RDSD] & RDS_GROUP_0_CHAR_1_MASK) >> RDS_GROUP_0_CHAR_1_SHIFT;
+            rds->group.basic_info.ch[1] = prog_name[2 * rds->group.basic_info.index + 1] =
+                (registers[RADIO_REG_RDSD] & RDS_GROUP_0_CHAR_2_MASK) >> RDS_GROUP_0_CHAR_2_SHIFT;
+
+            prog_name_ready = rds->group.basic_info.index == 3;
+            break;
     }
 
     return result;
@@ -261,11 +354,21 @@ bool radio_get_rds(RADIO_RDS *rds) {
 // Load all status registers from to the chip
 // registers 0A through 0F
 // using the sequential read access mode.
-static void _read_registers() {
+static bool _read_registers() {
+    bool result = false;
+    uint16_t new_data[6];
+
     i2c_start(RADIO_SLA_SQE, I2C_READ);
-    for (uint8_t i = 0; i < 6; i++)
-        registers[0xA + i] = _read16(i == 5);
+    for (uint8_t i = 0; i < 6; i++) {
+        new_data[i] = _read16(i == 5);
+        if (new_data[i] != registers[0xA + i]) {
+            registers[0xA + i] = new_data[i];
+            result = true;
+        }
+    }
     i2c_stop();
+
+    return result;
 }
 
 // Save writable registers back to the chip

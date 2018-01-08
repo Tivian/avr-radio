@@ -204,6 +204,7 @@ static void repaint(brush_t brush) {
 
             set_timeout(save.setup.timeout, ({ void fx(void) {
                 lcd_clear_line(WORKING_LINE);
+                busy = false;
             } fx; }));
             break;
 
@@ -472,8 +473,10 @@ static void selector_mode(REMOTE_CMD cmd, bool repeat) {
 }
 
 static void change_mode(mode_t mode, bool clear) {
-    if (is_timeout_set())
+    if (is_timeout_set()) {
         clear_timeout();
+        busy = false;
+    }
 
     caller = save.mode;
     save.mode = mode;

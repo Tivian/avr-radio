@@ -1,23 +1,27 @@
-#ifndef LCD_H_
-#define LCD_H_
+#ifndef LCD_HPP
+#define LCD_HPP
 
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <util/delay.h>
-#include "lcd_custom.h"
+#include "lcd_custom.hpp"
 
 #define LCD_LINES           2
 #define LCD_DISP_LENGTH    16
 #define LCD_LINE_LENGTH  0x40
 #define LCD_START_LINE1  0x00
-#define LCD_START_LINE2  0x40
+#define LCD_START_LINE2  LCD_LINE_LENGTH
 
-#define LCD_DELAY_BOOTUP   16000
-#define LCD_DELAY_INIT      5000
-#define LCD_DELAY_INIT_REP    64
-#define LCD_DELAY_INIT_4BIT   64
-#define LCD_DELAY_BUSY_FLAG    4
-#define LCD_DELAY_ENABLE_PULSE 1
+#define LCD_DELAY_BOOTUP      16000
+#define LCD_DELAY_INIT         5000
+#define LCD_DELAY_CLEAR        2000
+#define LCD_DELAY_CMD            40
+#define LCD_DELAY_INIT_REP       64
+#define LCD_DELAY_INIT_4BIT      64
+#define LCD_DELAY_ENABLE_PULSE    1
+
+#define LCD_RS_INSTRUCTION    0
+#define LCD_RS_DATA           1
 
 /* instruction register bit positions, see HD44780U data sheet */
 #define LCD_CLR               0      /* DB0: clear display                  */
@@ -65,21 +69,14 @@
 #define LCD_FUNCTION_8BIT_1LINE  0x30   /* 8-bit interface, single line, 5x7 dots */
 #define LCD_FUNCTION_8BIT_2LINES 0x38   /* 8-bit interface, dual line,   5x7 dots */
 
-#define LCD_FUNCTION_DEFAULT    LCD_FUNCTION_4BIT_2LINES
-#define LCD_MODE_DEFAULT     ((1<<LCD_ENTRY_MODE) | (1<<LCD_ENTRY_INC) )
+#define LCD_FUNCTION_DEFAULT LCD_FUNCTION_4BIT_2LINES
+#define LCD_MODE_DEFAULT     (_BV(LCD_ENTRY_MODE) | _BV(LCD_ENTRY_INC))
 
 #ifndef LCD_RS_PORT
 #define LCD_RS_PORT PORTD
 #endif
 #ifndef LCD_RS_PIN
 #define LCD_RS_PIN  PD2
-#endif
-
-#ifndef LCD_RW_PORT
-#define LCD_RW_PORT PORTD
-#endif
-#ifndef LCD_RW_PIN
-#define LCD_RW_PIN  PD3
 #endif
 
 #ifndef LCD_E_PORT
@@ -117,99 +114,23 @@
 #define LCD_DB7_PIN  PB0
 #endif
 
-#define DDR(x) (*(&(x) - 1))
-#define PIN(x) (*(&(x) - 2))
-
-#define lcd_rs_high()   LCD_RS_PORT |=  _BV(LCD_RS_PIN);
-#define lcd_rs_low()    LCD_RS_PORT &= ~_BV(LCD_RS_PIN);
-
-#define lcd_rw_high()   LCD_RW_PORT |=  _BV(LCD_RW_PIN);
-#define lcd_rw_low()    LCD_RW_PORT &= ~_BV(LCD_RW_PIN);
-
-#define lcd_e_delay()   _delay_us(LCD_DELAY_ENABLE_PULSE);
-#define lcd_e_high()    LCD_E_PORT  |=  _BV(LCD_E_PIN);
-#define lcd_e_low()     LCD_E_PORT  &= ~_BV(LCD_E_PIN);
-#define lcd_e_toggle()  lcd_e_high(); lcd_e_delay(); lcd_e_low();
-
-#define lcd_db4_high()  LCD_DB4_PORT |=  _BV(LCD_DB4_PIN);
-#define lcd_db4_low()   LCD_DB4_PORT &= ~_BV(LCD_DB4_PIN);
-
-#define lcd_db5_high()  LCD_DB5_PORT |=  _BV(LCD_DB5_PIN);
-#define lcd_db5_low()   LCD_DB5_PORT &= ~_BV(LCD_DB5_PIN);
-
-#define lcd_db6_high()  LCD_DB6_PORT |=  _BV(LCD_DB6_PIN);
-#define lcd_db6_low()   LCD_DB6_PORT &= ~_BV(LCD_DB6_PIN);
-
-#define lcd_db7_high()  LCD_DB7_PORT |=  _BV(LCD_DB7_PIN);
-#define lcd_db7_low()   LCD_DB7_PORT &= ~_BV(LCD_DB7_PIN);
-
-#define lcd_data_output() \
-    DDR(LCD_DB4_PORT) |= _BV(LCD_DB4_PIN);\
-    DDR(LCD_DB5_PORT) |= _BV(LCD_DB5_PIN);\
-    DDR(LCD_DB6_PORT) |= _BV(LCD_DB6_PIN);\
-    DDR(LCD_DB7_PORT) |= _BV(LCD_DB7_PIN);
-
-#define lcd_data_input() \
-    DDR(LCD_DB4_PORT) &= ~_BV(LCD_DB4_PIN);\
-    DDR(LCD_DB5_PORT) &= ~_BV(LCD_DB5_PIN);\
-    DDR(LCD_DB6_PORT) &= ~_BV(LCD_DB6_PIN);\
-    DDR(LCD_DB7_PORT) &= ~_BV(LCD_DB7_PIN);
-
-#define lcd_data_clear() \
-    lcd_db4_low(); lcd_db5_low();\
-    lcd_db6_low(); lcd_db7_low();\
-
-
-#define lcd_data_inactive() \
-    lcd_db4_high(); lcd_db5_high();\
-    lcd_db6_high(); lcd_db7_high();
-
-#define lcd_data_set_high(data) \
-    if ((data) & 0x10) lcd_db4_high();\
-    if ((data) & 0x20) lcd_db5_high();\
-    if ((data) & 0x40) lcd_db6_high();\
-    if ((data) & 0x80) lcd_db7_high();\
-
-#define lcd_data_set_low(data) \
-    if ((data) & 0x01) lcd_db4_high();\
-    if ((data) & 0x02) lcd_db5_high();\
-    if ((data) & 0x04) lcd_db6_high();\
-    if ((data) & 0x08) lcd_db7_high();
-
-#define lcd_data_get_high(data) \
-    if (PIN(LCD_DB4_PORT) & _BV(LCD_DB4_PIN)) (data) |= 0x10;\
-    if (PIN(LCD_DB5_PORT) & _BV(LCD_DB5_PIN)) (data) |= 0x20;\
-    if (PIN(LCD_DB6_PORT) & _BV(LCD_DB6_PIN)) (data) |= 0x40;\
-    if (PIN(LCD_DB7_PORT) & _BV(LCD_DB7_PIN)) (data) |= 0x80;
-
-#define lcd_data_get_low(data) \
-    if (PIN(LCD_DB4_PORT) & _BV(LCD_DB4_PIN)) (data) |= 0x01;\
-    if (PIN(LCD_DB5_PORT) & _BV(LCD_DB5_PIN)) (data) |= 0x02;\
-    if (PIN(LCD_DB6_PORT) & _BV(LCD_DB6_PIN)) (data) |= 0x04;\
-    if (PIN(LCD_DB7_PORT) & _BV(LCD_DB7_PIN)) (data) |= 0x08;
-
-void lcd_command(uint8_t cmd);
-void lcd_data(uint8_t data);
-void lcd_goto(uint8_t x, uint8_t y);
-uint8_t lcd_getxy(void);
-uint8_t lcd_gety(void);
-uint8_t lcd_getx(void);
-void lcd_clr(void);
-void lcd_home(void);
-void lcd_putc(char c);
-void lcd_puts(const char *s);
-void lcd_puts_p(PGM_P progmem_s);
-void lcd_puts_center(const char *s, uint8_t line);
-void lcd_puts_center_p(PGM_P progmem_s, uint8_t line);
-void lcd_put_space(uint8_t len);
-void lcd_put_def(const uint8_t *c, uint8_t x, uint8_t y);
-void lcd_put_def_p(const uint8_t *progmem_c, uint8_t x, uint8_t y);
-uint8_t lcd_get_next_char_id(void);
-uint8_t lcd_define_char(const uint8_t *c);
-uint8_t lcd_define_char_id(const uint8_t *c, uint8_t id);
-uint8_t lcd_define_char_p(const uint8_t *progmem_c);
-uint8_t lcd_define_char_id_p(const uint8_t *progmem_c, uint8_t id);
-void lcd_clear_line(uint8_t line);
-void lcd_init(void);
+namespace LCD {
+void init();
+void pos(uint8_t x, uint8_t y = 0);
+void clear();
+void clear(uint8_t line);
+void home();
+void newline();
+void putc(char c);
+void puts(const char* s);
+void puts(const char* s, uint8_t line, bool also_clear = false);
+void put_space(uint8_t len);
+void put_def(const uint8_t* c, uint8_t x, uint8_t y = 0);
+uint8_t get_next_char_id(void);
+uint8_t define_char(const uint8_t* c);
+uint8_t define_char_id(const uint8_t* c, uint8_t id);
+void shift_left();
+void shift_right();
+}
 
 #endif
